@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据面板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .module {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .module-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .stat-sub {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 5px;
+        }
+
+        .stat-click-hint {
+            font-size: 11px;
+            opacity: 0.75;
+            margin-top: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: 15px 0;
+        }
+
+        .chart-container-small {
+            position: relative;
+            height: 150px;
+            margin: 15px 0;
+        }
+
+        .rank-list {
+            margin: 15px 0;
+        }
+
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .rank-item:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+
+        .rank-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .rank-name {
+            flex: 1;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .rank-details {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-size: 12px;
+            color: #666;
+            margin-left: 10px;
+        }
+
+        .rank-detail-line {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+
+        .rank-tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .rank-tag.online {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .rank-tag.offline {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .rank-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 15px 0;
+        }
+
+        .sub-section {
+            margin-top: 20px;
+        }
+
+        .sub-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        /* 响应式布局 */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .module-title {
+                font-size: 18px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+        }
+
+        /* 用户类型分布样式 */
+        .user-type-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .user-type-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .user-type-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .user-type-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .user-type-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .close {
+            color: #999;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .detail-table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .detail-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .detail-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .detail-table .amount {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .detail-section {
+            margin-bottom: 30px;
+        }
+
+        .detail-section-title {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 20px;
+            }
+
+            .modal-title {
+                font-size: 20px;
+            }
+
+            .detail-table {
+                font-size: 14px;
+            }
+
+            .detail-table th,
+            .detail-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 数据面板</h1>
+            <p>数据统计时间：2025年7月 - 2026年7月</p>
+        </div>
+
+        <div class="dashboard">
+            <!-- 模块1：最近销售 -->
+            <div class="module">
+                <div class="module-title">💰 最近销售</div>
+
+                <div class="stat-card" onclick="showModal('sales')">
+                    <div class="stat-label">近一年销售总金额</div>
+                    <div class="stat-value">¥12,580,000</div>
+                    <div class="stat-sub">线上：¥7,850,000 | 线下：¥4,730,000</div>
+                    <div class="stat-click-hint">👆 点击查看明细</div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">月度销售趋势</div>
+                    <div class="chart-container">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">课程销售 TOP5（线上）</div>
+                    <div class="rank-list" id="onlineCourseRank"></div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">课程销售 TOP5（线下）</div>
+                    <div class="rank-list" id="offlineCourseRank"></div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">工作人员成交额 TOP5</div>
+                    <div class="rank-list" id="marketingOrderRank"></div>
+                </div>
+            </div>
+
+            <!-- 模块2：用户数据模块 -->
+            <div class="module">
+                <div class="module-title">👥 用户数据模块</div>
+
+                <div class="stat-card" onclick="showModal('users')">
+                    <div class="stat-label">用户总人数</div>
+                    <div class="stat-value">28,650</div>
+                    <div class="stat-sub">近一个月注册：1,280 人</div>
+                    <div class="stat-click-hint">👆 点击查看明细</div>
+                </div>
+
+                <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="showModal('newUsers')">
+                    <div class="stat-label">新用户</div>
+                    <div class="stat-value">3,450</div>
+                    <div class="stat-click-hint">👆 点击查看明细</div>
+                </div>
+
+                <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="showModal('onlineUsers')">
+                    <div class="stat-label">纯线上用户</div>
+                    <div class="stat-value">18,920</div>
+                    <div class="stat-click-hint">👆 点击查看明细</div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">用户类型分布</div>
+                    <div class="user-type-grid">
+                        <div class="user-type-item" onclick="showModal('b2c')">
+                            <div class="user-type-label">B2C</div>
+                            <div class="user-type-value">15,200</div>
+                        </div>
+                        <div class="user-type-item" onclick="showModal('b2b2c')">
+                            <div class="user-type-label">B2B2C</div>
+                            <div class="user-type-value">8,450</div>
+                        </div>
+                        <div class="user-type-item" onclick="showModal('b2b')">
+                            <div class="user-type-label">B2B</div>
+                            <div class="user-type-value">5,000</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">学习行为高峰期（1-20分钟）</div>
+                    <div class="chart-container-small">
+                        <canvas id="peakHourChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模块3：线上线下 -->
+            <div class="module">
+                <div class="module-title">🔄 线上线下</div>
+
+                <div class="sub-section">
+                    <div class="sub-title">行业精英四大课程购买情况</div>
+
+                    <div class="stat-card" onclick="showModal('course_zhuoyue')">
+                        <div class="stat-label">卓越新人</div>
+                        <div class="stat-value">2,350人</div>
+                        <div class="stat-sub">金额：¥2,350,000</div>
+                        <div class="stat-click-hint">👆 点击查看明细</div>
+                    </div>
+
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);" onclick="showModal('course_yewu')">
+                        <div class="stat-label">业务主任</div>
+                        <div class="stat-value">1,890人</div>
+                        <div class="stat-sub">金额：¥2,835,000</div>
+                        <div class="stat-click-hint">👆 点击查看明细</div>
+                    </div>
+
+                    <div class="stat-card" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);" onclick="showModal('course_zhuoyuejingli')">
+                        <div class="stat-label">卓越经理人</div>
+                        <div class="stat-value">1,520人</div>
+                        <div class="stat-sub">金额：¥3,040,000</div>
+                        <div class="stat-click-hint">👆 点击查看明细</div>
+                    </div>
+
+                    <div class="stat-card" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);" onclick="showModal('course_hangye')">
+                        <div class="stat-label">行业精英</div>
+                        <div class="stat-value">980人</div>
+                        <div class="stat-sub">金额：¥2,940,000</div>
+                        <div class="stat-click-hint">👆 点击查看明细</div>
+                    </div>
+
+                    <div class="sub-section">
+                        <div class="sub-title">课程占比</div>
+                        <div class="chart-container">
+                            <canvas id="coursePieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模块4：学习行为 -->
+            <div class="module">
+                <div class="module-title">📚 学习行为</div>
+
+                <div class="sub-section">
+                    <div class="sub-title">线下班报名人数</div>
+                    <div class="chart-container-small">
+                        <canvas id="offlineClassChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">近一年学习时长分布</div>
+                    <div class="chart-container-small">
+                        <canvas id="learningDurationChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">近6月活跃用户学习时长</div>
+                    <div class="chart-container-small">
+                        <canvas id="activeUserDurationChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-title">每人登录观看次数分布</div>
+                    <div class="chart-container-small">
+                        <canvas id="loginDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通用模态框 -->
+    <div id="detailModal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">详情</div>
+                <span class="close" onclick="closeModal(event)">&times;</span>
+            </div>
+            <div id="modalBody">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 测试数据
+        const testData = {
+            // 月度销售数据（近12个月）
+            monthlySales: {
+                labels: ['2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'],
+                online: [520, 680, 750, 890, 1200, 950, 680, 820, 950, 1100, 1250, 980],
+                offline: [380, 420, 510, 620, 780, 550, 420, 480, 560, 650, 720, 640]
+            },
+            // 课程销售TOP5（线上）- 包含线上和线下数据
+            onlineCourseRank: [
+                {
+                    name: '卓越新人',
+                    online: { orders: 2450, amount: 2450000 },
+                    offline: { orders: 800, amount: 800000 },
+                    total: 3250
+                },
+                {
+                    name: '行业精英',
+                    online: { orders: 2200, amount: 2200000 },
+                    offline: { orders: 690, amount: 690000 },
+                    total: 2890
+                },
+                {
+                    name: '业务主任',
+                    online: { orders: 1850, amount: 1850000 },
+                    offline: { orders: 600, amount: 600000 },
+                    total: 2450
+                },
+                {
+                    name: '卓越经理人',
+                    online: { orders: 1650, amount: 1650000 },
+                    offline: { orders: 530, amount: 530000 },
+                    total: 2180
+                },
+                {
+                    name: '市场洞察',
+                    online: { orders: 1450, amount: 1450000 },
+                    offline: { orders: 470, amount: 470000 },
+                    total: 1920
+                }
+            ],
+            // 课程销售TOP5（线下）- 包含线上和线下数据
+            offlineCourseRank: [
+                {
+                    name: '卓升Er班',
+                    online: { orders: 580, amount: 580000 },
+                    offline: { orders: 1270, amount: 1270000 },
+                    total: 1850
+                },
+                {
+                    name: '行知会千万精英',
+                    online: { orders: 480, amount: 480000 },
+                    offline: { orders: 1040, amount: 1040000 },
+                    total: 1520
+                },
+                {
+                    name: '泰康班',
+                    online: { orders: 410, amount: 410000 },
+                    offline: { orders: 870, amount: 870000 },
+                    total: 1280
+                },
+                {
+                    name: '市场洞察',
+                    online: { orders: 320, amount: 320000 },
+                    offline: { orders: 660, amount: 660000 },
+                    total: 980
+                },
+                {
+                    name: '代代幸福发布会',
+                    online: { orders: 250, amount: 250000 },
+                    offline: { orders: 500, amount: 500000 },
+                    total: 750
+                }
+            ],
+            // 工作人员成交额TOP5（线下班）
+            marketingOrderRank: [
+                { name: '康乐', value: 1250000 },
+                { name: '甯安澜', value: 1080000 },
+                { name: '李莉', value: 980000 },
+                { name: '陆淼', value: 890000 },
+                { name: '刘云', value: 760000 }
+            ],
+            // 学习高峰期数据
+            peakHours: {
+                labels: ['6-8时', '8-10时', '10-12时', '12-14时', '14-16时', '16-18时', '18-20时', '20-22时', '22-24时'],
+                data: [320, 580, 890, 1250, 980, 760, 1450, 1680, 920]
+            },
+            // 线下班报名人数（近6个月）
+            offlineClass: {
+                labels: ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07'],
+                data: [180, 220, 280, 320, 290, 350]
+            },
+            // 学习时长分布（线上vs线下）
+            learningDuration: {
+                labels: ['<1h', '1-3h', '3-5h', '5-10h', '10-20h', '>20h'],
+                online: [1250, 3580, 4920, 5680, 2890, 1320],
+                offline: [450, 1280, 1850, 2340, 1120, 480]
+            },
+            // 活跃用户学习时长分布
+            activeUserDuration: {
+                labels: ['<300分钟', '300-500分钟', '500-1000分钟', '>1000分钟'],
+                data: [2850, 4320, 3180, 1560]
+            },
+            // 登录观看次数分布
+            loginDistribution: {
+                labels: ['1-5次', '6-10次', '11-20次', '21-50次', '>50次'],
+                data: [3250, 4580, 3920, 2680, 1120]
+            },
+            // 销售明细数据
+            salesDetails: {
+                online: [
+                    { course: '卓越新人', orders: 3250, amount: 3250000 },
+                    { course: '行业精英', orders: 2890, amount: 2890000 },
+                    { course: '业务主任', orders: 2450, amount: 2450000 },
+                    { course: '卓越经理人', orders: 2180, amount: 2180000 },
+                    { course: '市场洞察', orders: 1920, amount: 1920000 },
+                    { course: '高端专题', orders: 1650, amount: 1650000 },
+                    { course: '优增优育', orders: 1420, amount: 1420000 },
+                    { course: '代代幸福发布会', orders: 980, amount: 980000 }
+                ],
+                offline: [
+                    { course: '卓升Er班', orders: 1850, amount: 1850000 },
+                    { course: '行知会千万精英', orders: 1520, amount: 1520000 },
+                    { course: '泰康班', orders: 1280, amount: 1280000 },
+                    { course: '市场洞察', orders: 980, amount: 980000 },
+                    { course: '代代幸福发布会', orders: 750, amount: 750000 },
+                    { course: '高端专题', orders: 680, amount: 680000 },
+                    { course: '优增优育', orders: 520, amount: 520000 },
+                    { course: '卓越新人', orders: 380, amount: 380000 }
+                ],
+                // 工作人员线下班成交明细
+                staff: [
+                    {
+                        name: '康乐',
+                        totalOrders: 156,
+                        totalAmount: 1250000,
+                        details: [
+                            { course: '卓升Er班', orders: 52, amount: 520000 },
+                            { course: '行知会千万精英', orders: 38, amount: 380000 },
+                            { course: '泰康班', orders: 35, amount: 250000 },
+                            { course: '市场洞察', orders: 31, amount: 100000 }
+                        ]
+                    },
+                    {
+                        name: '甯安澜',
+                        totalOrders: 142,
+                        totalAmount: 1080000,
+                        details: [
+                            { course: '卓升Er班', orders: 45, amount: 450000 },
+                            { course: '行知会千万精英', orders: 32, amount: 320000 },
+                            { course: '泰康班', orders: 38, amount: 210000 },
+                            { course: '市场洞察', orders: 27, amount: 100000 }
+                        ]
+                    },
+                    {
+                        name: '李莉',
+                        totalOrders: 128,
+                        totalAmount: 980000,
+                        details: [
+                            { course: '卓升Er班', orders: 42, amount: 420000 },
+                            { course: '行知会千万精英', orders: 28, amount: 280000 },
+                            { course: '泰康班', orders: 32, amount: 180000 },
+                            { course: '市场洞察', orders: 26, amount: 100000 }
+                        ]
+                    },
+                    {
+                        name: '陆淼',
+                        totalOrders: 115,
+                        totalAmount: 890000,
+                        details: [
+                            { course: '卓升Er班', orders: 38, amount: 380000 },
+                            { course: '行知会千万精英', orders: 30, amount: 300000 },
+                            { course: '泰康班', orders: 28, amount: 130000 },
+                            { course: '市场洞察', orders: 19, amount: 80000 }
+                        ]
+                    },
+                    {
+                        name: '刘云',
+                        totalOrders: 98,
+                        totalAmount: 760000,
+                        details: [
+                            { course: '卓升Er班', orders: 32, amount: 320000 },
+                            { course: '行知会千万精英', orders: 25, amount: 250000 },
+                            { course: '泰康班', orders: 22, amount: 120000 },
+                            { course: '市场洞察', orders: 19, amount: 70000 }
+                        ]
+                    }
+                ]
+            },
+            // 用户数据明细
+            userDetails: {
+                total: {
+                    total: 28650,
+                    lastMonth: 1280,
+                    breakdown: [
+                        { type: '线上用户', count: 18920, percentage: 66.0 },
+                        { type: '线下用户', count: 6450, percentage: 22.5 },
+                        { type: '线上线下结合', count: 3280, percentage: 11.5 }
+                    ]
+                },
+                newUsers: {
+                    total: 3450,
+                    breakdown: [
+                        { source: '线上推广', count: 1850, percentage: 53.6 },
+                        { source: '线下活动', count: 980, percentage: 28.4 },
+                        { source: '老用户推荐', count: 420, percentage: 12.2 },
+                        { source: '其他渠道', count: 200, percentage: 5.8 }
+                    ],
+                    recentMonths: [
+                        { month: '2026-05', count: 680 },
+                        { month: '2026-06', count: 890 },
+                        { month: '2026-07', count: 1280 }
+                    ]
+                },
+                onlineUsers: {
+                    total: 18920,
+                    breakdown: [
+                        { type: '活跃用户', count: 12650, percentage: 66.9 },
+                        { type: '沉默用户', count: 4270, percentage: 22.6 },
+                        { type: '新注册用户', count: 2000, percentage: 10.5 }
+                    ]
+                },
+                b2c: {
+                    total: 15200,
+                    features: ['个人用户', '直接购买', '线上学习为主'],
+                    courseDistribution: [
+                        { course: '卓越新人', count: 5200 },
+                        { course: '行业精英', count: 3800 },
+                        { course: '业务主任', count: 3200 },
+                        { course: '其他课程', count: 3000 }
+                    ]
+                },
+                b2b2c: {
+                    total: 8450,
+                    features: ['企业推荐', '团队学习', '混合模式'],
+                    courseDistribution: [
+                        { course: '卓越经理人', count: 3200 },
+                        { course: '卓越新人', count: 2800 },
+                        { course: '业务主任', count: 1650 },
+                        { course: '其他课程', count: 800 }
+                    ]
+                },
+                b2b: {
+                    total: 5000,
+                    features: ['企业客户', '批量采购', '定制化服务'],
+                    courseDistribution: [
+                        { course: '卓越经理人', count: 2100 },
+                        { course: '业务主任', count: 1800 },
+                        { course: '行业精英', count: 700 },
+                        { course: '其他课程', count: 400 }
+                    ]
+                }
+            },
+            // 课程明细
+            courseDetails: {
+                zhuoyue_xinren: {
+                    name: '卓越新人',
+                    totalUsers: 2350,
+                    totalAmount: 2350000,
+                    onlineUsers: 1850,
+                    offlineUsers: 500,
+                    monthlyData: [
+                        { month: '2026-02', online: 280, offline: 85 },
+                        { month: '2026-03', online: 320, offline: 95 },
+                        { month: '2026-04', online: 350, offline: 110 },
+                        { month: '2026-05', online: 380, offline: 105 },
+                        { month: '2026-06', online: 290, offline: 90 },
+                        { month: '2026-07', online: 230, offline: 15 }
+                    ]
+                },
+                yewu_zhuren: {
+                    name: '业务主任',
+                    totalUsers: 1890,
+                    totalAmount: 2835000,
+                    onlineUsers: 1420,
+                    offlineUsers: 470,
+                    monthlyData: [
+                        { month: '2026-02', online: 220, offline: 75 },
+                        { month: '2026-03', online: 260, offline: 85 },
+                        { month: '2026-04', online: 280, offline: 90 },
+                        { month: '2026-05', online: 310, offline: 100 },
+                        { month: '2026-06', online: 240, offline: 80 },
+                        { month: '2026-07', online: 110, offline: 40 }
+                    ]
+                },
+                zhuoyue_jingli: {
+                    name: '卓越经理人',
+                    totalUsers: 1520,
+                    totalAmount: 3040000,
+                    onlineUsers: 1180,
+                    offlineUsers: 340,
+                    monthlyData: [
+                        { month: '2026-02', online: 180, offline: 55 },
+                        { month: '2026-03', online: 210, offline: 65 },
+                        { month: '2026-04', online: 230, offline: 70 },
+                        { month: '2026-05', online: 250, offline: 80 },
+                        { month: '2026-06', online: 200, offline: 50 },
+                        { month: '2026-07', online: 110, offline: 20 }
+                    ]
+                },
+                hangye_jingying: {
+                    name: '行业精英',
+                    totalUsers: 980,
+                    totalAmount: 2940000,
+                    onlineUsers: 680,
+                    offlineUsers: 300,
+                    monthlyData: [
+                        { month: '2026-02', online: 120, offline: 50 },
+                        { month: '2026-03', online: 130, offline: 55 },
+                        { month: '2026-04', online: 140, offline: 60 },
+                        { month: '2026-05', online: 120, offline: 65 },
+                        { month: '2026-06', online: 100, offline: 45 },
+                        { month: '2026-07', online: 70, offline: 25 }
+                    ]
+                }
+            }
+        };
+
+        // 渲染课程销售排行榜
+        function renderRankList(containerId, data, isMoney = false, dataType = 'course') {
+            const container = document.getElementById(containerId);
+            container.innerHTML = data.map((item, index) => {
+                const onclick = dataType === 'staff' ? `onclick="showModal('staff_${index}')"` : `onclick="showModal('rank_${dataType}_${index}')"`;
+
+                if (dataType === 'onlineCourse' || dataType === 'offlineCourse') {
+                    // 课程排行榜显示线上/线下详情
+                    return `
+                        <div class="rank-item" ${onclick}>
+                            <span class="rank-number">${index + 1}</span>
+                            <span class="rank-name">${item.name}</span>
+                            <div class="rank-details">
+                                <div class="rank-detail-line">
+                                    <span class="rank-tag online">线上</span>
+                                    <span>${item.online.orders}笔</span>
+                                    <span style="font-weight: 600; color: #1976d2;">¥${item.online.amount.toLocaleString()}</span>
+                                </div>
+                                <div class="rank-detail-line">
+                                    <span class="rank-tag offline">线下</span>
+                                    <span>${item.offline.orders}笔</span>
+                                    <span style="font-weight: 600; color: #7b1fa2;">¥${item.offline.amount.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (dataType === 'staff') {
+                    // 工作人员排行榜
+                    return `
+                        <div class="rank-item" ${onclick}>
+                            <span class="rank-number">${index + 1}</span>
+                            <span class="rank-name">${item.name}</span>
+                            <span class="rank-value">¥${item.value.toLocaleString()}</span>
+                        </div>
+                    `;
+                } else {
+                    // 其他排行榜
+                    return `
+                        <div class="rank-item" ${onclick}>
+                            <span class="rank-number">${index + 1}</span>
+                            <span class="rank-name">${item.name}</span>
+                            <span class="rank-value">${isMoney ? '¥' + item.value.toLocaleString() : item.value.toLocaleString()}</span>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        // 通用模态框显示函数
+        function showModal(type, index) {
+            const modal = document.getElementById('detailModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            let title = '';
+            let html = '';
+
+            switch(type) {
+                case 'sales':
+                    title = '销售明细详情';
+                    html = generateSalesDetail();
+                    break;
+                case 'users':
+                    title = '用户总人数详情';
+                    html = generateUserDetail();
+                    break;
+                case 'newUsers':
+                    title = '新用户详情';
+                    html = generateNewUserDetail();
+                    break;
+                case 'onlineUsers':
+                    title = '纯线上用户详情';
+                    html = generateOnlineUserDetail();
+                    break;
+                case 'b2c':
+                    title = 'B2C 用户详情';
+                    html = generateB2CDetail();
+                    break;
+                case 'b2b2c':
+                    title = 'B2B2C 用户详情';
+                    html = generateB2B2CDetail();
+                    break;
+                case 'b2b':
+                    title = 'B2B 用户详情';
+                    html = generateB2BDetail();
+                    break;
+                case 'course_zhuoyue':
+                    title = '卓越新人课程详情';
+                    html = generateCourseDetail('zhuoyue_xinren');
+                    break;
+                case 'course_yewu':
+                    title = '业务主任课程详情';
+                    html = generateCourseDetail('yewu_zhuren');
+                    break;
+                case 'course_zhuoyuejingli':
+                    title = '卓越经理人课程详情';
+                    html = generateCourseDetail('zhuoyue_jingli');
+                    break;
+                case 'course_hangye':
+                    title = '行业精英课程详情';
+                    html = generateCourseDetail('hangye_jingying');
+                    break;
+                default:
+                    if (type.startsWith('staff_')) {
+                        const staffIndex = parseInt(type.split('_')[1]);
+                        title = `${testData.salesDetails.staff[staffIndex].name} - 线下班成交明细`;
+                        html = generateStaffDetail(staffIndex);
+                    } else if (type.startsWith('rank_')) {
+                        const parts = type.split('_');
+                        const rankType = parts[1];
+                        const rankIndex = parseInt(parts[2]);
+                        if (rankType === 'onlineCourse' || rankType === 'offlineCourse') {
+                            const courseName = rankType === 'onlineCourse' ?
+                                testData.onlineCourseRank[rankIndex].name :
+                                testData.offlineCourseRank[rankIndex].name;
+                            title = `${courseName} - 课程详情`;
+                            html = generateRankCourseDetail(rankType, rankIndex);
+                        }
+                    }
+            }
+
+            modalTitle.textContent = title;
+            modalBody.innerHTML = html;
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        // 生成销售明细
+        function generateSalesDetail() {
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">📊 线上课程销售明细</div>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>课程名称</th>
+                                <th>订单数</th>
+                                <th>金额</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${testData.salesDetails.online.map(item => `
+                                <tr>
+                                    <td>${item.course}</td>
+                                    <td>${item.orders.toLocaleString()}</td>
+                                    <td class="amount">¥${item.amount.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #f8f9fa; font-weight: 600;">
+                                <td>合计</td>
+                                <td>${testData.salesDetails.online.reduce((sum, item) => sum + item.orders, 0).toLocaleString()}</td>
+                                <td class="amount">¥${testData.salesDetails.online.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #764ba2;">🏢 线下课程销售明细</div>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>课程名称</th>
+                                <th>订单数</th>
+                                <th>金额</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${testData.salesDetails.offline.map(item => `
+                                <tr>
+                                    <td>${item.course}</td>
+                                    <td>${item.orders.toLocaleString()}</td>
+                                    <td class="amount">¥${item.amount.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #f8f9fa; font-weight: 600;">
+                                <td>合计</td>
+                                <td>${testData.salesDetails.offline.reduce((sum, item) => sum + item.orders, 0).toLocaleString()}</td>
+                                <td class="amount">¥${testData.salesDetails.offline.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #f5576c;">👥 工作人员成交额明细</div>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>姓名</th>
+                                <th>订单数</th>
+                                <th>成交额</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${testData.salesDetails.staff.map((item, index) => `
+                                <tr>
+                                    <td>${item.name}</td>
+                                    <td>${item.totalOrders}</td>
+                                    <td class="amount">¥${item.totalAmount.toLocaleString()}</td>
+                                    <td><button onclick="showModal('staff_${index}')" style="padding: 4px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">查看明细</button></td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #f8f9fa; font-weight: 600;">
+                                <td>合计</td>
+                                <td>${testData.salesDetails.staff.reduce((sum, item) => sum + item.totalOrders, 0)}</td>
+                                <td class="amount">¥${testData.salesDetails.staff.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString()}</td>
+                                <td>-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成工作人员明细
+        function generateStaffDetail(index) {
+            const staff = testData.salesDetails.staff[index];
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #f5576c;">${staff.name} - 线下班成交明细</div>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>线下班课程</th>
+                                <th>订单数</th>
+                                <th>成交额</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${staff.details.map(item => `
+                                <tr>
+                                    <td>${item.course}</td>
+                                    <td>${item.orders}</td>
+                                    <td class="amount">¥${item.amount.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #f8f9fa; font-weight: 600;">
+                                <td>合计</td>
+                                <td>${staff.details.reduce((sum, item) => sum + item.orders, 0)}</td>
+                                <td class="amount">¥${staff.details.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成用户详情
+        function generateUserDetail() {
+            const data = testData.userDetails.total;
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">用户总人数：${data.total.toLocaleString()}</div>
+                    <p style="margin-bottom: 15px; color: #666;">近一个月注册：${data.lastMonth.toLocaleString()} 人</p>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>用户类型</th>
+                                <th>人数</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.breakdown.map(item => `
+                                <tr>
+                                    <td>${item.type}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                    <td>${item.percentage}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成新用户详情
+        function generateNewUserDetail() {
+            const data = testData.userDetails.newUsers;
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #f5576c;">新用户总数：${data.total.toLocaleString()}</div>
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">来源分布</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>来源渠道</th>
+                                <th>人数</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.breakdown.map(item => `
+                                <tr>
+                                    <td>${item.source}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                    <td>${item.percentage}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">近3个月趋势</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>月份</th>
+                                <th>新增用户</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.recentMonths.map(item => `
+                                <tr>
+                                    <td>${item.month}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成纯线上用户详情
+        function generateOnlineUserDetail() {
+            const data = testData.userDetails.onlineUsers;
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #4facfe;">纯线上用户：${data.total.toLocaleString()}</div>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>用户状态</th>
+                                <th>人数</th>
+                                <th>占比</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.breakdown.map(item => `
+                                <tr>
+                                    <td>${item.type}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                    <td>${item.percentage}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成B2C详情
+        function generateB2CDetail() {
+            const data = testData.userDetails.b2c;
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">B2C 用户：${data.total.toLocaleString()}</div>
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">用户特征</h4>
+                    <ul style="margin-left: 20px; color: #666; line-height: 1.8;">
+                        ${data.features.map(f => `<li>${f}</li>`).join('')}
+                    </ul>
+
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">课程分布</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>课程名称</th>
+                                <th>用户数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.courseDistribution.map(item => `
+                                <tr>
+                                    <td>${item.course}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成B2B2C详情
+        function generateB2B2CDetail() {
+            const data = testData.userDetails.b2b2c;
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">B2B2C 用户：${data.total.toLocaleString()}</div>
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">用户特征</h4>
+                    <ul style="margin-left: 20px; color: #666; line-height: 1.8;">
+                        ${data.features.map(f => `<li>${f}</li>`).join('')}
+                    </ul>
+
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">课程分布</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>课程名称</th>
+                                <th>用户数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.courseDistribution.map(item => `
+                                <tr>
+                                    <td>${item.course}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成B2B详情
+        function generateB2BDetail() {
+            const data = testData.userDetails.b2b;
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">B2B 用户：${data.total.toLocaleString()}</div>
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">用户特征</h4>
+                    <ul style="margin-left: 20px; color: #666; line-height: 1.8;">
+                        ${data.features.map(f => `<li>${f}</li>`).join('')}
+                    </ul>
+
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">课程分布</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>课程名称</th>
+                                <th>用户数</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.courseDistribution.map(item => `
+                                <tr>
+                                    <td>${item.course}</td>
+                                    <td>${item.count.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成课程详情
+        function generateCourseDetail(courseKey) {
+            const data = testData.courseDetails[courseKey];
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">${data.name} - 课程详情</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <div style="color: #666; font-size: 13px; margin-bottom: 5px;">总用户数</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">${data.totalUsers.toLocaleString()}</div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <div style="color: #666; font-size: 13px; margin-bottom: 5px;">总金额</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">¥${data.totalAmount.toLocaleString()}</div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <div style="color: #666; font-size: 13px; margin-bottom: 5px;">线上用户</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #4facfe;">${data.onlineUsers.toLocaleString()}</div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <div style="color: #666; font-size: 13px; margin-bottom: 5px;">线下用户</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #764ba2;">${data.offlineUsers.toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    <h4 style="margin: 20px 0 10px 0; color: #333;">近6个月报名趋势</h4>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>月份</th>
+                                <th>线上</th>
+                                <th>线下</th>
+                                <th>合计</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.monthlyData.map(item => `
+                                <tr>
+                                    <td>${item.month}</td>
+                                    <td>${item.online}</td>
+                                    <td>${item.offline}</td>
+                                    <td style="font-weight: 600;">${item.online + item.offline}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // 生成排行榜课程详情
+        function generateRankCourseDetail(rankType, index) {
+            const courseData = rankType === 'onlineCourse' ?
+                testData.onlineCourseRank[index] :
+                testData.offlineCourseRank[index];
+
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title" style="color: #667eea;">${courseData.name} - 课程详情</div>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 20px; border-radius: 8px;">
+                            <div style="color: #1976d2; font-size: 14px; margin-bottom: 8px; font-weight: 600;">📱 线上学员</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #1976d2; margin-bottom: 5px;">${courseData.online.orders.toLocaleString()} 笔</div>
+                            <div style="font-size: 18px; color: #1565c0;">¥${courseData.online.amount.toLocaleString()}</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); padding: 20px; border-radius: 8px;">
+                            <div style="color: #7b1fa2; font-size: 14px; margin-bottom: 8px; font-weight: 600;">🏢 线下学员</div>
+                            <div style="font-size: 24px; font-weight: bold; color: #7b1fa2; margin-bottom: 5px;">${courseData.offline.orders.toLocaleString()} 笔</div>
+                            <div style="font-size: 18px; color: #6a1b9a;">¥${courseData.offline.amount.toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #666; font-size: 14px;">总销售数量</span>
+                            <span style="font-size: 28px; font-weight: bold; color: #667eea;">${courseData.total.toLocaleString()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="color: #666; font-size: 14px;">总金额</span>
+                            <span style="font-size: 28px; font-weight: bold; color: #667eea;">¥${(courseData.online.amount + courseData.offline.amount).toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                        <h4 style="margin-bottom: 15px; color: #333;">课程信息</h4>
+                        <p style="color: #666; line-height: 1.8;">
+                            • 课程名称：${courseData.name}<br>
+                            • 排行榜类型：${rankType === 'onlineCourse' ? '线上课程排行榜' : '线下课程排行榜'}<br>
+                            • 总销售数量：${courseData.total.toLocaleString()}<br>
+                            • 排名：第 ${index + 1} 名<br>
+                            • 线上占比：${((courseData.online.orders / courseData.total) * 100).toFixed(1)}%<br>
+                            • 线下占比：${((courseData.offline.orders / courseData.total) * 100).toFixed(1)}%
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 关闭模态框
+        function closeModal(event) {
+            if (event.target.id === 'detailModal' || event.target.classList.contains('close')) {
+                const modal = document.getElementById('detailModal');
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // 按ESC键关闭模态框
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('detailModal');
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        });
+
+        // 初始化图表
+        function initCharts() {
+            // 月度销售柱状图
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            new Chart(salesCtx, {
+                type: 'bar',
+                data: {
+                    labels: testData.monthlySales.labels,
+                    datasets: [
+                        {
+                            label: '线上销售(万)',
+                            data: testData.monthlySales.online,
+                            backgroundColor: '#667eea',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '线下销售(万)',
+                            data: testData.monthlySales.offline,
+                            backgroundColor: '#764ba2',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 学习高峰期折线图
+            const peakCtx = document.getElementById('peakHourChart').getContext('2d');
+            new Chart(peakCtx, {
+                type: 'line',
+                data: {
+                    labels: testData.peakHours.labels,
+                    datasets: [{
+                        label: '学习人数',
+                        data: testData.peakHours.data,
+                        borderColor: '#f5576c',
+                        backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 课程占比饼图
+            const coursePieCtx = document.getElementById('coursePieChart').getContext('2d');
+            new Chart(coursePieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['卓越新人', '业务主任', '卓越经理人', '行业精英'],
+                    datasets: [{
+                        data: [2350, 1890, 1520, 980],
+                        backgroundColor: ['#667eea', '#f5576c', '#30cfd0', '#a8edea'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+
+            // 线下班报名人数柱状图
+            const offlineClassCtx = document.getElementById('offlineClassChart').getContext('2d');
+            new Chart(offlineClassCtx, {
+                type: 'bar',
+                data: {
+                    labels: testData.offlineClass.labels,
+                    datasets: [{
+                        label: '报名人数',
+                        data: testData.offlineClass.data,
+                        backgroundColor: '#667eea',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 学习时长分布对比图
+            const learningDurationCtx = document.getElementById('learningDurationChart').getContext('2d');
+            new Chart(learningDurationCtx, {
+                type: 'bar',
+                data: {
+                    labels: testData.learningDuration.labels,
+                    datasets: [
+                        {
+                            label: '线上',
+                            data: testData.learningDuration.online,
+                            backgroundColor: '#667eea',
+                            borderRadius: 4
+                        },
+                        {
+                            label: '线下',
+                            data: testData.learningDuration.offline,
+                            backgroundColor: '#764ba2',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // 活跃用户学习时长分布
+            const activeUserCtx = document.getElementById('activeUserDurationChart').getContext('2d');
+            new Chart(activeUserCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: testData.activeUserDuration.labels,
+                    datasets: [{
+                        data: testData.activeUserDuration.data,
+                        backgroundColor: ['#667eea', '#f5576c', '#30cfd0', '#fee140'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+
+            // 登录观看次数分布
+            const loginCtx = document.getElementById('loginDistributionChart').getContext('2d');
+            new Chart(loginCtx, {
+                type: 'bar',
+                data: {
+                    labels: testData.loginDistribution.labels,
+                    datasets: [{
+                        label: '用户数',
+                        data: testData.loginDistribution.data,
+                        backgroundColor: '#764ba2',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            renderRankList('onlineCourseRank', testData.onlineCourseRank, false, 'onlineCourse');
+            renderRankList('offlineCourseRank', testData.offlineCourseRank, false, 'offlineCourse');
+            renderRankList('marketingOrderRank', testData.marketingOrderRank, true, 'staff');
+            initCharts();
+        });
+    </script>
+</body>
+</html>
